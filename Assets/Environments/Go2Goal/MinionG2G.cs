@@ -11,6 +11,10 @@ public class MinionG2G : Agent
 {
     public GameObject area;
     public GameObject goalPrefab;
+    public float maxLinearVelocity = 1f;
+    public float minLinearVelocity = 0f;
+    public float maxAngularVelocityMagnitude = 3f;
+    public float[] defaultAction;
 
     bool ready = false;
     GameObject goal;
@@ -39,14 +43,11 @@ public class MinionG2G : Agent
             ready = true;
             agentRb = agent.GetComponent<Rigidbody>();
             SetColor(Random.ColorHSV(0f, 1f, 0.5f, 1f, 0.75f, 1f));
-            print(agent + " is ready!!");
-            // SetRandomGoal();
         }
     }
 
     public override void Initialize()
     {
-        print(agent + "Initializing!!");
         ReadyUp();
     }
 
@@ -96,11 +97,12 @@ public class MinionG2G : Agent
 
     public override void CollectObservations(VectorSensor sensor)
     {
-        // VectorSensor.size = 11
+        // VectorSensor.size = 8
         relativePosition = goal.transform.position - agent.position;
-        sensor.AddObservation(agentColor.r);
-        sensor.AddObservation(agentColor.g);
-        sensor.AddObservation(agentColor.b);
+        // Not necessary to give color codes because the relative pos vec of the goal is provided!
+        // sensor.AddObservation(agentColor.r);
+        // sensor.AddObservation(agentColor.g);
+        // sensor.AddObservation(agentColor.b);
         sensor.AddObservation(relativePosition.x);
         sensor.AddObservation(relativePosition.y);
         sensor.AddObservation(agent.InverseTransformDirection(agentRb.velocity));
@@ -112,37 +114,35 @@ public class MinionG2G : Agent
         var locVel = transform.InverseTransformDirection(agentRb.velocity);
         locVel.z = action[0];
         agentRb.velocity = agent.TransformDirection(locVel);
-        agentRb.angularVelocity = agent.up * action[1];
+        agent.Rotate(agent.up, Time.deltaTime * action[1]);
     }
 
     public override void OnActionReceived(float[] vectorAction)
     {
-        print("actions received: " + vectorAction);
+        BoundAndClipAcitons(vectorAction);
         MoveAgent(vectorAction);
         // AddReward(prevRelativePosition.magnitude - currRelativePosition.magnitude);
     }
 
     public override void Heuristic(float[] actionsOut)
     {
-        actionsOut[0] = 0f;
-        actionsOut[1] = 0f;
+        Array.Copy(defaultAction, actionsOut, defaultAction.Length);
         if (Input.GetKey(KeyCode.D))
         {
-            actionsOut[1] = +3f;
+            actionsOut[1] = +15f;
         }
         else if (Input.GetKey(KeyCode.A))
         {
-            actionsOut[1] = -3f;
+            actionsOut[1] = -15f;
         }
         if (Input.GetKey(KeyCode.W))
         {
-            actionsOut[0] = +0.1f;
+            actionsOut[0] = +1f;
         }
         else if (Input.GetKey(KeyCode.S))
         {
-            actionsOut[0] = -0.1f;
+            actionsOut[0] = -1f;
         }
-        print("actionsOut");
     }
 
     public override void OnEpisodeBegin()
@@ -150,6 +150,14 @@ public class MinionG2G : Agent
         agentRb.velocity = Vector3.zero;
         RandomSpawn();
         SetRandomGoal();
-        print(agent + "'s Episode Begins ...");
     }
+
+    private void BoundAndClipAcitons(float[] actions)
+    {
+        actions[0] = (actions[0] + 1)/2.0f;
+        actions[0] *= (maxLinearVelocity - minLinearVelocity);
+        actions[0] += minLinearVelocity;
+        actions[1] *= maxAngularVelocityMagnitude;
+    }
+
 }
