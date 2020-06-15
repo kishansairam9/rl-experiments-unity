@@ -13,3 +13,6 @@ A multi-agent environment.
 
 ## Flavours of the future:
 Might include a scenario where the agents do not get the location of their goal, but instead receive the color of their goal.
+
+## Acknowledgements
+The depth sensor was implemented by using the code provided by Unity Technologies' [`ml-imagesynthesis`](https://bitbucket.org/Unity-Technologies/ml-imagesynthesis) repository.
