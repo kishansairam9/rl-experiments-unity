@@ -2,31 +2,41 @@
 using System.Linq;
 using System.Collections;
 using System.Collections.Generic;
+
+using Unity.Collections;
 using UnityEngine;
 using Random = UnityEngine.Random;
 using Unity.MLAgents;
 using Unity.MLAgents.Sensors;
 
+[System.Serializable]
+public struct ActionRange{
+    public float min;
+    public float max;
+    public float defaultValue;
+    public float getDefaultInRange()
+    {
+        return 2.0f * (defaultValue - min)/(max - min) - 1.0f;
+    }
+}
+
 public class MinionG2G : Agent
 {
     public GameObject area;
     public GameObject goalPrefab;
-    public float maxLinearVelocity = 1f;
-    public float minLinearVelocity = 0f;
-    public float maxAngularVelocityMagnitude = 3f;
+    public ActionRange[] actionRange;
+    [ReadOnly]
     public float[] defaultAction;
 
-    bool ready = false;
-    GameObject goal;
-    Transform agent;
-    Rigidbody agentRb;
-    Vector3 areaCenter;
-    Material agentMaterial;
-    Color agentColor;
-    Vector3 relativePosition;
-    Vector2 currRelativePosition;
-    Vector2 prevRelativePosition;
-
+    private bool ready = false;
+    private GameObject goal;
+    private Transform agent;
+    private Rigidbody agentRb;
+    private Vector3 areaCenter;
+    private Material agentMaterial;
+    private Color agentColor;
+    private Vector3 relativePosition;
+    private float currRelativeDistance;
 
     void Start()
     {
@@ -37,12 +47,15 @@ public class MinionG2G : Agent
     {
         if (!ready)
         {
+            defaultAction = new float[actionRange.Length];
+            for(var i = 0; i < actionRange.Length; i++)
+                defaultAction[i] = actionRange[i].getDefaultInRange();
             goal = Instantiate(goalPrefab);
             agent = GetComponent<Transform>();
             areaCenter = area.GetComponent<Transform>().position;
-            ready = true;
             agentRb = agent.GetComponent<Rigidbody>();
             SetColor(Random.ColorHSV(0f, 1f, 0.5f, 1f, 0.75f, 1f));
+            ready = true;
         }
     }
 
@@ -53,8 +66,6 @@ public class MinionG2G : Agent
 
     public void SetColor(Color color)
     {
-        // print("Set Color" + color);
-        // print(agent.GetChild(0));
         agentColor = color;
         agentMaterial = agent.GetChild(0).GetComponent<Renderer>().material;agentMaterial.color = agentColor;
         goal.GetComponent<Renderer>().material = agentMaterial;
@@ -98,7 +109,10 @@ public class MinionG2G : Agent
     public override void CollectObservations(VectorSensor sensor)
     {
         // VectorSensor.size = 8
-        relativePosition = goal.transform.position - agent.position;
+        if (goal != null)
+        {
+            relativePosition = goal.transform.position - agent.position;   
+        }
         // Not necessary to give color codes because the relative pos vec of the goal is provided!
         // sensor.AddObservation(agentColor.r);
         // sensor.AddObservation(agentColor.g);
@@ -119,9 +133,17 @@ public class MinionG2G : Agent
 
     public override void OnActionReceived(float[] vectorAction)
     {
-        BoundAndClipAcitons(vectorAction);
+        var currDistance = relativePosition.magnitude;
+        if (currRelativeDistance != currDistance)
+        {
+            AddReward(currRelativeDistance - currDistance);
+            currRelativeDistance = currDistance;
+        }
+        for (var i = 0; i < vectorAction.Length; i++)
+        {
+            vectorAction[i] = ScaleAction(vectorAction[i], actionRange[i].min, actionRange[i].max);
+        }
         MoveAgent(vectorAction);
-        // AddReward(prevRelativePosition.magnitude - currRelativePosition.magnitude);
     }
 
     public override void Heuristic(float[] actionsOut)
@@ -150,14 +172,25 @@ public class MinionG2G : Agent
         agentRb.velocity = Vector3.zero;
         RandomSpawn();
         SetRandomGoal();
+        relativePosition = goal.transform.position - agent.position;
+        currRelativeDistance = relativePosition.magnitude;
     }
 
-    private void BoundAndClipAcitons(float[] actions)
+    void OnTriggerEnter(Collider other)
     {
-        actions[0] = (actions[0] + 1)/2.0f;
-        actions[0] *= (maxLinearVelocity - minLinearVelocity);
-        actions[0] += minLinearVelocity;
-        actions[1] *= maxAngularVelocityMagnitude;
+        if (other == goal.GetComponent<BoxCollider>())
+        {
+            AddReward(2f);
+            EndEpisode();
+        }
     }
 
+    void OnCollisionEnter(Collision collisionInfo)
+    {
+        if (collisionInfo.gameObject.name != "Floor")
+        {
+            AddReward(-10f);
+            EndEpisode();
+        }
+    }
 }
