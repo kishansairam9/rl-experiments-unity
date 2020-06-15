@@ -151,11 +151,11 @@ public class MinionG2G : Agent
         Array.Copy(defaultAction, actionsOut, defaultAction.Length);
         if (Input.GetKey(KeyCode.D))
         {
-            actionsOut[1] = +15f;
+            actionsOut[1] = +1f;
         }
         else if (Input.GetKey(KeyCode.A))
         {
-            actionsOut[1] = -15f;
+            actionsOut[1] = -1f;
         }
         if (Input.GetKey(KeyCode.W))
         {
