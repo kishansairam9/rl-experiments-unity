@@ -25,6 +25,7 @@ public class MinionG2G : Agent
     public GameObject area;
     public GameObject goalPrefab;
     public ActionRange[] actionRange;
+    public int minTimeInGoal = 100;
     [ReadOnly]
     public float[] defaultAction;
 
@@ -37,6 +38,8 @@ public class MinionG2G : Agent
     private Color agentColor;
     private Vector3 relativePosition;
     private float currRelativeDistance;
+    private Collider selfGoalCollider;
+    private int timeInGoal = 0;
 
     void Start()
     {
@@ -56,6 +59,8 @@ public class MinionG2G : Agent
             agentRb = agent.GetComponent<Rigidbody>();
             SetColor(Random.ColorHSV(0f, 1f, 0.5f, 1f, 0.75f, 1f));
             ready = true;
+            agentRb.maxAngularVelocity = 2.0f;
+            selfGoalCollider = goal.GetComponent<BoxCollider>();
         }
     }
 
@@ -86,49 +91,61 @@ public class MinionG2G : Agent
             )
         );
         agent.position = new Vector3(x, 0.65f, z);
+        var a = Random.Range(-1.0f, 1.0f);
+        var b = Random.Range(-1.0f, 1.0f);
+        var c = a*agent.forward + b*agent.right;
+        agent.rotation = Quaternion.LookRotation(c, agent.up);
     }
 
     public void SetRandomGoal()
     {
+        var tries = 0;
         // Set some random goal inside the bounds of the arena!
         float x, z;
         do
         {
             x = Random.Range(areaCenter.x - 50f, areaCenter.x + 50f);
             z = Random.Range(areaCenter.y - 50f, areaCenter.y + 50f);
-
         } while(
             Physics.CheckBox(
                 new Vector3(x, 0.5f, z),
-                new Vector3(0.7f, 0.1f, 0.7f)
-            )
+                new Vector3(0.7f, 0.5f, 0.7f), Quaternion.identity, 2
+            ) && tries++ < 10
         );
+        print("Tried "+ tries + " times!");
         goal.transform.position = new Vector3(x, 0.025f, z);
     }
 
     public override void CollectObservations(VectorSensor sensor)
     {
-        // VectorSensor.size = 8
+        // VectorSensor.size = 5
         if (goal != null)
         {
-            relativePosition = goal.transform.position - agent.position;   
+            relativePosition = agent.InverseTransformDirection(
+                goal.transform.position - agent.position
+            );
+            var relPose = relativePosition.normalized;
+            var relMag = Mathf.Min(relativePosition.magnitude, 15.0f)/15f;
+            sensor.AddObservation(relPose.x);
+            sensor.AddObservation(relPose.z);
+            sensor.AddObservation(relMag);
+            sensor.AddObservation(agent.InverseTransformDirection(agentRb.velocity).z);
+            sensor.AddObservation(agentRb.angularVelocity.y);
+            // var s = "";
+            // // List<float> x = sensor.m_Observations;
+            // foreach (var val in GetObservations())
+            // {
+            //     s = s + "  " + val;
+            // }
+            // Debug.Log(s);
         }
-        // Not necessary to give color codes because the relative pos vec of the goal is provided!
-        // sensor.AddObservation(agentColor.r);
-        // sensor.AddObservation(agentColor.g);
-        // sensor.AddObservation(agentColor.b);
-        sensor.AddObservation(relativePosition.x);
-        sensor.AddObservation(relativePosition.y);
-        sensor.AddObservation(agent.InverseTransformDirection(agentRb.velocity));
-        sensor.AddObservation(agent.InverseTransformDirection(agentRb.angularVelocity));
     }
 
     public void MoveAgent(float[] action)
     {
-        var locVel = transform.InverseTransformDirection(agentRb.velocity);
-        locVel.z = action[0];
-        agentRb.velocity = agent.TransformDirection(locVel);
-        agent.Rotate(agent.up, Time.deltaTime * action[1]);
+        // agentRb.velocity = agent.forward * action[0];
+        agentRb.AddForce(agent.forward * action[0], ForceMode.Acceleration);
+        agentRb.AddTorque(agent.up * action[1], ForceMode.Acceleration);
     }
 
     public override void OnActionReceived(float[] vectorAction)
@@ -178,10 +195,20 @@ public class MinionG2G : Agent
 
     void OnTriggerEnter(Collider other)
     {
-        if (other == goal.GetComponent<BoxCollider>())
+        if (other == selfGoalCollider)
         {
             AddReward(2f);
-            EndEpisode();
+            timeInGoal = 0;
+        }
+    }
+
+    void OnTriggerStay(Collider other)
+    {
+        if (other == selfGoalCollider)
+        {
+            AddReward(2f);
+            if (timeInGoal++ > minTimeInGoal)
+                EndEpisode();
         }
     }
 
@@ -189,7 +216,7 @@ public class MinionG2G : Agent
     {
         if (collisionInfo.gameObject.name != "Floor")
         {
-            AddReward(-10f);
+            AddReward(-5f);
             EndEpisode();
         }
     }
