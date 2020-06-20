@@ -63,3 +63,4 @@ crashlytics-build.properties
 
 # Results directory from mlagents-learn
 results/
+results.meta
