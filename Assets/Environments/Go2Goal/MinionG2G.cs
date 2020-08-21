@@ -9,16 +9,6 @@ using Random = UnityEngine.Random;
 using Unity.MLAgents;
 using Unity.MLAgents.Sensors;
 
-[System.Serializable]
-public struct ActionRange{
-    public float min;
-    public float max;
-    public float defaultValue;
-    public float getDefaultInRange()
-    {
-        return 2.0f * (defaultValue - min)/(max - min) - 1.0f;
-    }
-}
 
 public class MinionG2G : Agent
 {
@@ -28,18 +18,24 @@ public class MinionG2G : Agent
     public int minTimeInGoal = 100;
     [ReadOnly]
     public float[] defaultAction;
+    public PID pidVelocityController;
+    public PID pidRotationController;
 
     private bool ready = false;
+    private float goalRadius;
     private GameObject goal;
     private Transform agent;
     private Rigidbody agentRb;
     private Vector3 areaCenter;
+    private Vector3 areaDimensions;
     private Material agentMaterial;
     private Color agentColor;
     private Vector3 relativePosition;
     private float currRelativeDistance;
     private Collider selfGoalCollider;
     private int timeInGoal = 0;
+    private int numSuccess = 0;
+    private float currAngularVelocity = 0f;
 
     void Start()
     {
@@ -59,8 +55,15 @@ public class MinionG2G : Agent
             agentRb = agent.GetComponent<Rigidbody>();
             SetColor(Random.ColorHSV(0f, 1f, 0.5f, 1f, 0.75f, 1f));
             ready = true;
-            agentRb.maxAngularVelocity = 2.0f;
+            // agentRb.maxAngularVelocity = 1.0f;
             selfGoalCollider = goal.GetComponent<BoxCollider>();
+            pidRotationController.Reset();
+            pidVelocityController.Reset();
+            goalRadius = goal.GetComponent<SphereCollider>().radius;
+            areaDimensions = Vector3.Scale(
+                area.transform.localScale,
+                area.transform.GetChild(0).GetComponent<MeshFilter>().mesh.bounds.size
+            );
         }
     }
 
@@ -72,7 +75,8 @@ public class MinionG2G : Agent
     public void SetColor(Color color)
     {
         agentColor = color;
-        agentMaterial = agent.GetChild(0).GetComponent<Renderer>().material;agentMaterial.color = agentColor;
+        agentMaterial = agent.GetChild(0).GetComponent<Renderer>().material;
+        agentMaterial.color = agentColor;
         goal.GetComponent<Renderer>().material = agentMaterial;
     }
 
@@ -81,8 +85,8 @@ public class MinionG2G : Agent
         float x, z;
         do
         {
-            x = Random.Range(areaCenter.x - 50f, areaCenter.x + 50f);
-            z = Random.Range(areaCenter.y - 50f, areaCenter.y + 50f);
+            x = Random.Range(areaCenter.x - areaDimensions.x/2f, areaCenter.x + areaDimensions.z/2f);
+            z = Random.Range(areaCenter.y - areaDimensions.x/2f, areaCenter.y + areaDimensions.z/2f);
 
         } while(
             Physics.CheckBox(
@@ -90,7 +94,7 @@ public class MinionG2G : Agent
                 new Vector3(0.55f, 0.55f, 0.55f)
             )
         );
-        agent.position = new Vector3(x, 0.65f, z);
+        agent.position = new Vector3(x, .05f, z);
         var a = Random.Range(-1.0f, 1.0f);
         var b = Random.Range(-1.0f, 1.0f);
         var c = a*agent.forward + b*agent.right;
@@ -100,16 +104,16 @@ public class MinionG2G : Agent
     public void SetRandomGoal()
     {
         var tries = 0;
-        // Set some random goal inside the bounds of the arena!
         float x, z;
+        // Set some random goal inside the bounds of the arena!
         do
         {
-            x = Random.Range(areaCenter.x - 50f, areaCenter.x + 50f);
-            z = Random.Range(areaCenter.y - 50f, areaCenter.y + 50f);
+            x = Random.Range(areaCenter.x - areaDimensions.x/2f, areaCenter.x + areaDimensions.z/2f);
+            z = Random.Range(areaCenter.y - areaDimensions.x/2f, areaCenter.y + areaDimensions.z/2f);
         } while(
-            Physics.CheckBox(
-                new Vector3(x, 0.5f, z),
-                new Vector3(0.7f, 0.5f, 0.7f), Quaternion.identity, 2
+            Physics.CheckSphere(
+                new Vector3(x, goal.transform.position.y, z),
+                goalRadius
             ) && tries++ < 10
         );
         print("Tried "+ tries + " times!");
@@ -129,8 +133,9 @@ public class MinionG2G : Agent
             sensor.AddObservation(relPose.x);
             sensor.AddObservation(relPose.z);
             sensor.AddObservation(relMag);
-            sensor.AddObservation(agent.InverseTransformDirection(agentRb.velocity).z);
-            sensor.AddObservation(agentRb.angularVelocity.y);
+            sensor.AddObservation(agent.InverseTransformDirection(agentRb.velocity));
+            sensor.AddObservation(agentRb.angularVelocity);
+            // print(agent.InvexrseTransformDirection(agentRb.velocity));
             // var s = "";
             // // List<float> x = sensor.m_Observations;
             // foreach (var val in GetObservations())
@@ -139,13 +144,34 @@ public class MinionG2G : Agent
             // }
             // Debug.Log(s);
         }
+        Debug.Log(agentRb.angularVelocity);
     }
 
     public void MoveAgent(float[] action)
     {
         // agentRb.velocity = agent.forward * action[0];
-        agentRb.AddForce(agent.forward * action[0], ForceMode.Acceleration);
-        agentRb.AddTorque(agent.up * action[1], ForceMode.Acceleration);
+        // agentRb.AddForce();
+        agentRb.velocity = agent.forward * 45f * Mathf.Deg2Rad;
+        agentRb.angularVelocity = agent.up * 45f * Mathf.Deg2Rad;
+        print("Action1: " + action[1]);
+        return;
+        var force = pidVelocityController.Update(
+            action[0], agent.InverseTransformDirection(agentRb.velocity).z,
+            Time.deltaTime
+        );
+        var torque = pidRotationController.Update(
+            action[1], currAngularVelocity, Time.deltaTime
+        );
+        print("TORQUE: " + torque);
+        agentRb.AddForce(agent.forward * force, ForceMode.Acceleration);
+        // agentRb.AddForce(agent.forward * action[0], ForceMode.VelocityChange);
+        agentRb.AddTorque(agent.up * torque, ForceMode.Acceleration);
+    }
+
+    void FixedUpdate(){
+        currAngularVelocity = agentRb.angularVelocity.y;
+        print(agentRb.angularVelocity.y);
+        // DebugGraph.Log("omega", currAngularVelocity);
     }
 
     public override void OnActionReceived(float[] vectorAction)
@@ -186,7 +212,7 @@ public class MinionG2G : Agent
 
     public override void OnEpisodeBegin()
     {
-        agentRb.velocity = Vector3.zero;
+        agentRb.velocity = Vector3.zero; 
         RandomSpawn();
         SetRandomGoal();
         relativePosition = goal.transform.position - agent.position;
@@ -208,7 +234,11 @@ public class MinionG2G : Agent
         {
             AddReward(2f);
             if (timeInGoal++ > minTimeInGoal)
+            {
+                numSuccess++;
                 EndEpisode();
+            }
+                
         }
     }
 
