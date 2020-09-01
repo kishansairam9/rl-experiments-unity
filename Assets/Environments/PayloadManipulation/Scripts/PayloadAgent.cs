@@ -13,6 +13,8 @@ public class PayloadAgent : Agent
     public ActionRange angularVelocityXRange;
     public ActionRange angularVelocityYRange;
     public ActionRange angularVelocityZRange;
+    public ActionRange rollRange;
+    public ActionRange pitchRange;
 
     private Rigidbody rb;
     private GameObject goal;
@@ -23,7 +25,7 @@ public class PayloadAgent : Agent
     private Collider goalCollider;
     private Vector3 relativeGoalPosition;
     private ActionRange[] actionRange;
-    // Start is called before the first frame update
+
     public override void Initialize()
     {
         rb = GetComponent<Rigidbody>();
@@ -37,26 +39,59 @@ public class PayloadAgent : Agent
         );
         goal = Instantiate(goalPrefab);
         goalCollider = goal.GetComponent<Collider>();
-        defaultAction = new float[4];
+        defaultAction = new float[5];
         defaultAction[0] = linearVelocityRange.getDefaultInRange();
-        defaultAction[1] = angularVelocityXRange.getDefaultInRange();
-        defaultAction[2] = angularVelocityYRange.getDefaultInRange();
-        defaultAction[3] = angularVelocityZRange.getDefaultInRange();
+        defaultAction[1] = linearVelocityRange.getDefaultInRange();
+        defaultAction[2] = angularVelocityXRange.getDefaultInRange();
+        defaultAction[3] = angularVelocityYRange.getDefaultInRange();
+        defaultAction[4] = angularVelocityZRange.getDefaultInRange();
         actionRange = new ActionRange[] { 
-            linearVelocityRange, angularVelocityXRange, angularVelocityYRange, angularVelocityZRange
+            linearVelocityRange,
+            linearVelocityRange,
+            angularVelocityXRange,
+            angularVelocityYRange,
+            angularVelocityZRange
         };
     }
 
     public void MoveAgent(float[] actions)
     {
+        /*
+         * actions is List of 5 floats in the interval [-1, 1] representing:
+         * linear velocity in x direction (local)
+         * linear velocity in y direction (local)
+         * angular velocity along x, y and z axis (local)
+         * 
+         * The actions are scaled to the actual interval specified!
+         */
+
         for (int i = 0; i < actions.Length; i++)
             actions[i] = ScaleAction(actions[i], actionRange[i].min, actionRange[i].max);
-        rb.velocity = transform.forward * actions[0];
-        rb.angularVelocity = (
-            transform.up * actions[1] + 
-            transform.forward * actions[2] + 
-            transform.right * actions[3]
+        rb.velocity = new Vector3(actions[0], 0f, actions[1]);
+
+        // check if the rotation has exceeded the limits
+        actions[3] = (
+            (actions[3] < 0 && Pi2Pi(transform.eulerAngles.x) <= rollRange.min) ? 0f :
+            (actions[3] > 0 && Pi2Pi(transform.eulerAngles.x) >= rollRange.max) ? 0f : actions[3]
         );
+        actions[4] = (
+            (actions[4] < 0 && Pi2Pi(transform.eulerAngles.z) <= pitchRange.min) ? 0f :
+            (actions[4] > 0 && Pi2Pi(transform.eulerAngles.z) >= pitchRange.max) ? 0f : actions[4]
+        );
+        rb.angularVelocity = (
+            transform.up * actions[2] +
+            transform.right * actions[3] + 
+            transform.forward * actions[4]
+        );
+    }
+
+    public static float Pi2Pi(float angle)
+    {
+        if (angle < -180F)
+            angle += 360F;
+        if (angle > 180F)
+            angle -= 360F;
+        return angle;
     }
 
     public override void OnActionReceived(float[] actions)
@@ -81,6 +116,10 @@ public class PayloadAgent : Agent
         actions[3] = (
             Input.GetKey(KeyCode.Z) ? -1f :
             Input.GetKey(KeyCode.C) ? +1f : defaultAction[3]
+        );
+        actions[4] = (
+            Input.GetKey(KeyCode.O) ? -1f :
+            Input.GetKey(KeyCode.P) ? +1f : defaultAction[4]
         );
     }
     public override void CollectObservations(VectorSensor sensor)
@@ -113,6 +152,7 @@ public class PayloadAgent : Agent
         relativeGoalPosition = transform.InverseTransformDirection(
             goal.transform.position - transform.position
         );
+        print("Ralative Goal Position: " + relativeGoalPosition);
         distanceToGoal = relativeGoalPosition.magnitude;
     }
 
@@ -127,7 +167,7 @@ public class PayloadAgent : Agent
             if (!Physics.CheckBox(position, selfSize / 2f))
                 break;
         }
-        position.y = 1.15f;
+        position.y = 1.3f;
         return position;
     }
 
