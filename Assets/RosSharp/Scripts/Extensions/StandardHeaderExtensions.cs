@@ -13,9 +13,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Added allocation free alternatives
-// UoK , 2019, Odysseas Doumas (od79@kent.ac.uk / odydoum@gmail.com) 
-
 namespace RosSharp.RosBridgeClient
 {
     public static class HeaderExtensions
@@ -25,7 +22,7 @@ namespace RosSharp.RosBridgeClient
         public static void Update(this MessageTypes.Std.Header header)
         {
             header.seq++;
-            timer.Now(header.stamp);
+            header.stamp = timer.Now();
         }
     }
 }
