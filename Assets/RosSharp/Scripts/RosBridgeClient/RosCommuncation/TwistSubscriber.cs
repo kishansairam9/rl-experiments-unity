@@ -50,16 +50,17 @@ namespace RosSharp.RosBridgeClient
         {
             if (isMessageReceived)
                 ProcessMessage();
-            previousRealTime = Time.realtimeSinceStartup;
         }
         private void ProcessMessage()
         {
             float deltaTime = Time.realtimeSinceStartup - previousRealTime;
 
             SubscribedTransform.Translate(linearVelocity * deltaTime);
-            SubscribedTransform.Rotate(Vector3.forward, angularVelocity.x * deltaTime * Mathf.Rad2Deg);
-            SubscribedTransform.Rotate(Vector3.up, angularVelocity.y * deltaTime * Mathf.Rad2Deg);
-            SubscribedTransform.Rotate(Vector3.left, angularVelocity.z * deltaTime * Mathf.Rad2Deg);
+            SubscribedTransform.Rotate(Vector3.forward, angularVelocity.x * deltaTime);
+            SubscribedTransform.Rotate(Vector3.up, angularVelocity.y * deltaTime);
+            SubscribedTransform.Rotate(Vector3.left, angularVelocity.z * deltaTime);
+
+            previousRealTime = Time.realtimeSinceStartup;
 
             isMessageReceived = false;
         }

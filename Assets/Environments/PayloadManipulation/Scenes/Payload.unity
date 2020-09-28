@@ -3471,6 +3471,7 @@ GameObject:
   - component: {fileID: 4860672570659256061}
   - component: {fileID: 4860672570659256060}
   - component: {fileID: 4860672570659256062}
+  - component: {fileID: 4860672570659256063}
   m_Layer: 0
   m_Name: Payload
   m_TagString: Untagged
@@ -3498,17 +3499,17 @@ MonoBehaviour:
   goalPrefab: {fileID: 5604159341471237145, guid: 326636b267967204a9b9fa8c97551f9b,
     type: 3}
   linearVelocityRange:
-    min: -1
-    max: 1
+    min: -5
+    max: 5
   angularVelocityXRange:
-    min: -0.15
-    max: 0.15
+    min: -1.5
+    max: 1.5
   angularVelocityYRange:
-    min: -0.15
-    max: 0.15
+    min: -1.5
+    max: 1.5
   angularVelocityZRange:
-    min: -0.15
-    max: 0.15
+    min: -1.5
+    max: 1.5
   rollRange:
     min: -20
     max: 20
@@ -3536,9 +3537,10 @@ MonoBehaviour:
   m_Model: {fileID: 0}
   m_InferenceDevice: 0
   m_BehaviorType: 0
-  m_BehaviorName: My Behavior
-  TeamId: 0
+  m_BehaviorName: beh
+  TeamId: 1
   m_UseChildSensors: 1
+  m_UseChildActuators: 1
   m_ObservableAttributeHandling: 0
 --- !u!114 &4860672570659256062
 MonoBehaviour:
@@ -3554,6 +3556,24 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   DecisionPeriod: 5
   TakeActionsBetweenDecisions: 1
+--- !u!114 &4860672570659256063
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4860672570659256059}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 282f342c2ab144bf38be65d4d0c4e07d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_Camera: {fileID: 1330633313}
+  m_SensorName: CameraSensor
+  m_Width: 64
+  m_Height: 64
+  m_Grayscale: 0
+  m_Compression: 0
 --- !u!33 &4944504984759899779
 MeshFilter:
   m_ObjectHideFlags: 0
