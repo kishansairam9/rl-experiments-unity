@@ -14,6 +14,7 @@ public class PayloadAgentGetOut : Agent
 
     public float roomExitReward = 5f;
     public float roomStayPenalty = -0.01f;
+    public float collisionPenalty = -5f;
 
 
     private Rigidbody rb;
@@ -144,6 +145,7 @@ public class PayloadAgentGetOut : Agent
         if (other.tag == "Wall")
         {
             print("Hit wall!");
+            AddReward(collisionPenalty);
             return true;
         }
         return false;
