@@ -152,7 +152,7 @@ public class PayloadAgent : Agent
         relativeGoalPosition = transform.InverseTransformDirection(
             goal.transform.position - transform.position
         );
-        print("Ralative Goal Position: " + relativeGoalPosition);
+        // print("Ralative Goal Position: " + relativeGoalPosition);
         distanceToGoal = relativeGoalPosition.magnitude;
     }
 
@@ -183,7 +183,7 @@ public class PayloadAgent : Agent
 
     void OnTriggerStay(Collider other)
     {
-        Debug.Log("DISTANCE2GOAL: " + distanceToGoal);
+        // Debug.Log("DISTANCE2GOAL: " + distanceToGoal);
         if (other == goalCollider && distanceToGoal < 0.1)
         {
             AddReward(2f);
