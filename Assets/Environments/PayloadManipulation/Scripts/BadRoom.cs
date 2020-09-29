@@ -4,24 +4,33 @@ using System.Collections.Generic;
 using UnityEngine;
 using Random = UnityEngine.Random;
 
-public class WallCreator : MonoBehaviour
+public class BadRoom: MonoBehaviour
 {
     public float minDoorWidth = 2f, maxDoorWidth = 4f;
-    public GameObject wallPrefab = null;
-    public bool makeRoomInstead = false;
+    public GameObject roomFloor;
+    public GameObject wallPrefab;
 
+    private GameObject map;
     private Vector3 wallPrefabSize;
 
-    void Init(float minDoorWidth, float maxDoorWidth, GameObject wallPrefab, bool makeRoomInstead)
+    public void Init(float minDoorWidth, float maxDoorWidth, GameObject wallPrefab, GameObject roomFloor)
     {
         this.minDoorWidth = minDoorWidth;
         this.maxDoorWidth = maxDoorWidth;
         this.wallPrefab = wallPrefab;
-        this.makeRoomInstead = makeRoomInstead;
+        this.roomFloor = GameObject.Instantiate(roomFloor);
     }
-    void Start()
+
+    public void CreateMap(String mapName)
     {
-        MakeMap();
+        this.map = MakeMap(mapName);
+    }
+
+    public void Clear()
+    {
+        if (this.map == null)
+            return;
+        Destroy(this.map);
     }
 
     public GameObject MakeMap(string name = "Map")
@@ -33,16 +42,13 @@ public class WallCreator : MonoBehaviour
             var x = (i % 2 == 0) ? 5f : 0f;
             var y = ((int)(i / 2f) > 0) ? 1f : -1f;
             wall.transform.position = new Vector3(x * y, 0f, (5 - x) * y);
-            if (makeRoomInstead)
-                wall.transform.eulerAngles = new Vector3(0f, (i % 2 == 0) ? 90f : 0f, 0f);
-            else
-                wall.transform.eulerAngles = new Vector3(0f, (i % 2 == 0) ? 0f : 90f, 0f);
+            wall.transform.eulerAngles = new Vector3(0f, (i % 2 == 0) ? 90f : 0f, 0f);
             wall.transform.SetParent(map.transform);
         }
         map.name = name;
         return map;
     }
-    // ----------------------------------------------------------------
+
     private GameObject MakeWallWithDoor(float wallLength, float wallWidth, float wallHeight, string name)
     {
         var wall1 = GameObject.Instantiate(wallPrefab);
@@ -53,9 +59,9 @@ public class WallCreator : MonoBehaviour
         var doorPosition = Random.Range(doorWidth / 2f, wallLength - doorWidth / 2f);
         var wall1Length = doorPosition - doorWidth / 2f;
         var wall2Length = wallLength - wall1Length - doorWidth;
-        wall1.transform.position = new Vector3(wall1Length / 2f, wallHeight/2f, 0f);
+        wall1.transform.position = new Vector3(wall1Length / 2f, wallHeight / 2f, 0f);
         wall1.transform.localScale = new Vector3(wall1Length, 2f, wallWidth);
-        wall2.transform.position = new Vector3(doorPosition + doorWidth/2f + wall2Length/2f, wallHeight/2f, 0f);
+        wall2.transform.position = new Vector3(doorPosition + doorWidth / 2f + wall2Length / 2f, wallHeight / 2f, 0f);
         wall2.transform.localScale = new Vector3(wall2Length, 2f, wallWidth);
         var wall = new GameObject();
         wall.name = name;
@@ -63,12 +69,5 @@ public class WallCreator : MonoBehaviour
         wall1.transform.SetParent(wall.transform);
         wall2.transform.SetParent(wall.transform);
         return wall;
-    }
-
-
-    // Update is called once per frame
-    void Update()
-    {
-        
     }
 }
