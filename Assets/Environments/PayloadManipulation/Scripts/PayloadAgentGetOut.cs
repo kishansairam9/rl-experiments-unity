@@ -15,6 +15,7 @@ public class PayloadAgentGetOut : Agent
     public float roomExitReward = 5f;
     public float roomStayPenalty = -0.01f;
     public float collisionPenalty = -5f;
+    public BadRoom room;
 
 
     private Rigidbody rb;
@@ -22,7 +23,6 @@ public class PayloadAgentGetOut : Agent
     private Vector3 arenaSize;
     private float[] defaultAction;
     private ActionRange[] actionRange;
-    private BadRoom room;
     // Start is called before the first frame update
     void Start()
     {
@@ -44,8 +44,6 @@ public class PayloadAgentGetOut : Agent
             linearVelocityRange,
             angularVelocityYRange
         };
-        room = gameObject.AddComponent<BadRoom>();
-        room.Init(minDoorWidth, maxDoorWidth, wallPrefab, roomFloorPrefab);
     }
 
     public void MoveAgent(float[] actions)
@@ -78,6 +76,16 @@ public class PayloadAgentGetOut : Agent
     public override void OnActionReceived(float[] actions)
     {
         MoveAgent(actions);
+        var numTriggered = room.GetNumTriggered();
+        if (numTriggered == 0)
+        {
+            AddReward(roomExitReward);
+            EndEpisode();
+        }
+        else
+        {
+            AddReward(room.GetNumTriggered() * roomStayPenalty / 10f);
+        }
     }
 
     public override void Heuristic(float[] actions)
@@ -105,7 +113,7 @@ public class PayloadAgentGetOut : Agent
         {
             var randomVector = new Vector3(Random.Range(0f, 1f), 0f, Random.Range(0f, 1f));
             position = (Vector3.Scale(randomVector, arenaSize/2f) - arenaSize / 4f);
-            print(position);
+            //print(position);
             if (!Physics.CheckBox(position, selfSize / 2f))
                 break;
         }
@@ -117,16 +125,16 @@ public class PayloadAgentGetOut : Agent
     {
         transform.eulerAngles = new Vector3(0f, Random.Range(0f, 360f), 0f);
         transform.position = GetRandomValidPositionInArena();
-        print(transform.position);
+        //print(transform.position);
     }
 
     public override void OnEpisodeBegin()
     {
-        Debug.Log("OnEpisodeBegin");
+        //Debug.Log("OnEpisodeBegin");
         rb.angularVelocity = Vector3.zero;
         RandomSpawn();
         room.Clear();
-        room.CreateMap("Some Map");
+        room.CreateMap("Room Map");
     }
 
     void OnCollisionEnter(Collision other)
@@ -150,16 +158,4 @@ public class PayloadAgentGetOut : Agent
         }
         return false;
     }
-
-    private void OnTriggerStay(Collider other)
-    {
-        AddReward(roomStayPenalty);
-    }
-
-    private void OnTriggerExit(Collider other)
-    {
-        AddReward(roomExitReward);
-        EndEpisode();
-    }
-
 }

@@ -9,9 +9,13 @@ public class BadRoom: MonoBehaviour
     public float minDoorWidth = 2f, maxDoorWidth = 4f;
     public GameObject roomFloor;
     public GameObject wallPrefab;
+    public GameObject payload;
+    public int resolution;
 
     private GameObject map;
     private Vector3 wallPrefabSize;
+    private AreaTrigger areaTrigger;
+
 
     public void Init(float minDoorWidth, float maxDoorWidth, GameObject wallPrefab, GameObject roomFloor)
     {
@@ -21,9 +25,20 @@ public class BadRoom: MonoBehaviour
         this.roomFloor = GameObject.Instantiate(roomFloor);
     }
 
+    private void Start()
+    {
+        this.roomFloor = GameObject.Instantiate(roomFloor);
+        var obj = new GameObject("Area Trigger");
+        areaTrigger = obj.AddComponent<AreaTrigger>();
+        areaTrigger.Init(resolution, 10f, Vector2.zero);
+        areaTrigger.populateTriggers(payload.transform.name);
+        areaTrigger.transform.parent = this.transform;
+    }
+
     public void CreateMap(String mapName)
     {
         this.map = MakeMap(mapName);
+        this.roomFloor.transform.parent = this.map.transform;
     }
 
     public void Clear()
@@ -31,6 +46,11 @@ public class BadRoom: MonoBehaviour
         if (this.map == null)
             return;
         Destroy(this.map);
+    }
+
+    public int GetNumTriggered()
+    {
+        return areaTrigger.getNumberOfHits();
     }
 
     public GameObject MakeMap(string name = "Map")
