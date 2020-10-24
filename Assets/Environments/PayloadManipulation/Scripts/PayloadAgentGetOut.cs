@@ -2,6 +2,7 @@
 using Random = UnityEngine.Random;
 using Unity.MLAgents;
 using Unity.MLAgents.Sensors;
+
 public class PayloadAgentGetOut : Agent
 {
     public GameObject arena;
@@ -12,11 +13,11 @@ public class PayloadAgentGetOut : Agent
     public GameObject wallPrefab;
     public GameObject roomFloorPrefab;
 
-    public float roomExitReward = 5f;
-    public float roomStayPenalty = -0.01f;
-    public float collisionPenalty = -5f;
+    public float roomExitReward = 0.5f;
+    public float roomStayPenalty = -0.001f;
+    public float collisionPenalty = -0.5f;
     public BadRoom room;
-
+    public float scaleParaboloid;
 
     private Rigidbody rb;
     private Vector3 selfSize;
@@ -24,8 +25,10 @@ public class PayloadAgentGetOut : Agent
     private float[] defaultAction;
     private ActionRange[] actionRange;
     // Start is called before the first frame update
+
     void Start()
     {
+        scaleParaboloid = Academy.Instance.EnvironmentParameters.GetWithDefault("scaleParaboloid", 0.0f);
         rb = GetComponent<Rigidbody>();
         arenaSize = Vector3.Scale(
             arena.transform.localScale,
@@ -84,7 +87,9 @@ public class PayloadAgentGetOut : Agent
         }
         else
         {
-            AddReward(room.GetNumTriggered() * roomStayPenalty / 10f);
+            var paraboloidPenalty = transform.position.sqrMagnitude;
+            // This works because here arena is square and paraboloidPenalty has both axes equal
+            AddReward(room.GetNumTriggered() * roomStayPenalty * (1 + scaleParaboloid / paraboloidPenalty) / 10f);
         }
     }
 
