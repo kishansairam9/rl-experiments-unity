@@ -87,7 +87,7 @@ public class PayloadAgentGetOut : Agent
         }
         else
         {
-            var paraboloidPenalty = transform.position.sqrMagnitude;
+            var paraboloidPenalty = transform.position.sqrMagnitude + 1;
             // This works because here arena is square and paraboloidPenalty has both axes equal
             AddReward(room.GetNumTriggered() * roomStayPenalty * (1 + scaleParaboloid / paraboloidPenalty) / 10f);
         }
